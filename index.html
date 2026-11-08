@@ -59,6 +59,8 @@
   .team li{display:block}
   .progress{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:6px}
   .progress div{height:100%;background:var(--accent)}
+  #install{display:none;width:100%;margin:18px 0 0;background:var(--accent);color:#fff;border:0;border-radius:14px;padding:16px;font-size:18px;font-weight:650;cursor:pointer}
+  #iosHelp{display:none;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:16px}
 </style>
 </head>
 <body>
@@ -68,6 +70,8 @@
   <button id="home" hidden>Inicio</button>
 </header>
 <main id="app"></main>
+<main style="padding-top:0"><button id="install">📲 Instalar en el móvil</button>
+<div id="iosHelp"><b>Para instalar en iPhone:</b><br>1. Abre esta página en <b>Safari</b>.<br>2. Pulsa el botón <b>Compartir</b> (cuadrado con flecha ↑).<br>3. Elige <b>«Añadir a pantalla de inicio»</b>.</div></main>
 
 <script>
 const DIAS = ["D","L","M","X","J","V","S"];
@@ -189,7 +193,7 @@ const CAMAS = {
   "4-5": {PA:{t:"2ª y 5ª+6ª PA",q:[a("2ª"),a("5ª")]}, SEMI:{t:"3ª PA y 1ª + Semi",q:[a("3ª"),b("1ª")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor y 4ª PA",q:[asc,a("4ª")]}},
   "5-5": {PA:{t:"2ª, 5ª y 6ª PA",q:[a("2ª"),a("5ª"),a("6ª")]}, SEMI:{t:"3ª PA y 1ª + Semi",q:[a("3ª"),b("1ª")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor y 4ª PA",q:[asc,a("4ª")]}},
   "5-6": {PA:{t:"2ª, 5ª y 6ª PA",q:[a("2ª"),a("5ª"),a("6ª")]}, SEMI:{t:"3ª PA y Semi",q:[a("3ª"),b("Semi")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor, 1ª y 4ª PA",q:[asc,b("1ª"),a("4ª")]}},
-  "6-6": {PA:{t:"2ª, 5ª y 6ª PA",q:[a("2ª"),a("5ª"),a("6ª")]}, SEMI:{t:"3ª PA, 1ª y Semi",q:[a("3ª"),b("1ª"),b("Semi")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor, 1ª y 4ª PA",q:[asc,b("1ª"),a("4ª")]}}
+  "6-6": {PA:{t:"2ª, 5ª y 6ª PA",q:[a("2ª"),a("5ª"),a("6ª")]}, SEMI:{t:"3ª PA, 1ª y Semi",q:[a("3ª"),b("1ª"),b("Semi")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor, diálisis/sótano PA y 4ª PA",q:[asc,a("Sótano"),a("4ª")]}}
 };
 function combos(pab,n){ return Object.keys(CAMAS).filter(k=>{const [pa,pb]=k.split("-"); return (pab==="A"?pa:pb)===String(n);}).map(k=>{const [pa,pb]=k.split("-"); return pab==="A"?pb:pa;}); }
 function camasDe(m){
@@ -212,6 +216,24 @@ function go(view, push=true){ if(push) stack.push(view); render(); }
 function back(){ stack.pop(); render(); }
 btnBack.onclick = back;
 btnHome.onclick = () => { stack = ["inicio"]; render();
+
+(function(){
+  const btn=document.getElementById("install"), help=document.getElementById("iosHelp");
+  const instalada = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone===true;
+  if(instalada) return;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  let evento=null;
+  window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); evento=e; btn.style.display="block"; });
+  window.addEventListener("appinstalled", ()=>{ btn.style.display="none"; help.style.display="none"; });
+  if(ios) btn.style.display="block";
+  btn.onclick = async ()=>{
+    if(evento){ evento.prompt(); try{ await evento.userChoice; }catch(e){} evento=null; btn.style.display="none"; }
+    else { help.style.display = help.style.display==="block" ? "none" : "block"; }
+  };
+  // el botón solo en la pantalla de inicio
+  const obs=()=>{ const enInicio = stack.length<=1; btn.parentElement.style.display = enInicio ? "" : "none"; };
+  const r0=render; render=function(){ r0(); obs(); }; obs();
+})();
 if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(()=>{}); }); } };
 
 function el(html){ const d=document.createElement("div"); d.innerHTML=html; return d; }
@@ -339,6 +361,24 @@ function camasHtml(m){
 }
 
 stack = ["inicio"]; render();
+
+(function(){
+  const btn=document.getElementById("install"), help=document.getElementById("iosHelp");
+  const instalada = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone===true;
+  if(instalada) return;
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  let evento=null;
+  window.addEventListener("beforeinstallprompt", e=>{ e.preventDefault(); evento=e; btn.style.display="block"; });
+  window.addEventListener("appinstalled", ()=>{ btn.style.display="none"; help.style.display="none"; });
+  if(ios) btn.style.display="block";
+  btn.onclick = async ()=>{
+    if(evento){ evento.prompt(); try{ await evento.userChoice; }catch(e){} evento=null; btn.style.display="none"; }
+    else { help.style.display = help.style.display==="block" ? "none" : "block"; }
+  };
+  // el botón solo en la pantalla de inicio
+  const obs=()=>{ const enInicio = stack.length<=1; btn.parentElement.style.display = enInicio ? "" : "none"; };
+  const r0=render; render=function(){ r0(); obs(); }; obs();
+})();
 if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(()=>{}); }); }
 </script>
 </body>
