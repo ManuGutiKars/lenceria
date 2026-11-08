@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lencería · Reparto diario</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f7a5c">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Lencería">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root{
+    --bg:#f4f6f5; --card:#fff; --ink:#1d2a26; --muted:#5f6f69; --line:#dfe5e2;
+    --accent:#1f7a5c; --accent-soft:#e3f2ec; --warn:#a15c00; --warn-soft:#fff3df;
+    --green:#2e8b57; --white:#7d8a85;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:17px;line-height:1.4}
+  header{position:sticky;top:0;z-index:5;background:var(--accent);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px}
+  header h1{font-size:18px;margin:0;flex:1}
+  header button{background:rgba(255,255,255,.18);color:#fff;border:0;border-radius:10px;padding:8px 12px;font-size:15px;cursor:pointer}
+  main{max-width:640px;margin:0 auto;padding:16px}
+  .q{font-size:22px;font-weight:650;margin:8px 0 16px}
+  .crumbs{color:var(--muted);font-size:14px;margin-bottom:6px}
+  .opts{display:grid;gap:12px}
+  .opts.grid2{grid-template-columns:1fr 1fr}
+  .opts.grid3{grid-template-columns:repeat(3,1fr)}
+  .opt{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:20px 14px;font-size:20px;font-weight:600;color:var(--ink);cursor:pointer;text-align:center}
+  .opt small{display:block;font-size:14px;font-weight:400;color:var(--muted);margin-top:4px}
+  .opt:active,.opt:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .days{display:flex;gap:6px;margin:4px 0 16px;flex-wrap:wrap}
+  .days button{flex:1;min-width:40px;border:2px solid var(--line);background:var(--card);border-radius:10px;padding:8px 0;font-weight:650;font-size:16px;cursor:pointer;color:var(--ink)}
+  .days button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .section{margin:20px 0 8px;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;display:flex;justify-content:space-between}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+  .card.done{opacity:.55}
+  .card-h{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer}
+  .card-h h3{margin:0;font-size:18px;flex:1}
+  .chk{width:28px;height:28px;border-radius:8px;border:2px solid var(--line);display:grid;place-items:center;flex:none;font-size:18px;color:#fff}
+  .card.done .chk{background:var(--accent);border-color:var(--accent)}
+  .card-b{padding:0 14px 12px}
+  ul.items{list-style:none;margin:0;padding:0}
+  ul.items li{display:flex;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+  ul.items li:first-child{border-top:0}
+  .n{min-width:64px;font-weight:700;font-variant-numeric:tabular-nums}
+  .tag{display:inline-block;font-size:12px;border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+  .tag.v{background:#e2f3e8;color:var(--green)} .tag.b{background:#eef0ef;color:var(--white)}
+  .note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:15px;margin-top:8px}
+  .sub{color:var(--muted);font-size:14px}
+  .empty{color:var(--muted);text-align:center;padding:30px 0}
+  .me{border:2px solid var(--accent);background:var(--accent-soft)}
+  .big{font-size:24px;font-weight:700;margin:4px 0}
+  .zones{font-size:19px;line-height:1.5}
+  .friday{background:#fde8e8;color:#9b1c1c;border-radius:10px;padding:10px 12px;font-weight:650;margin-top:10px}
+  .team li{display:block}
+  .progress{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:6px}
+  .progress div{height:100%;background:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Lencería</h1>
+  <button id="back" hidden>← Atrás</button>
+  <button id="home" hidden>Inicio</button>
+</header>
+<main id="app"></main>
+
+<script>
+const DIAS = ["D","L","M","X","J","V","S"];
+const DIAS_NOMBRE = {L:"Lunes",M:"Martes",X:"Miércoles",J:"Jueves",V:"Viernes",S:"Sábado",D:"Domingo"};
+const ORDEN_DIAS = ["L","M","X","J","V","S","D"];
+const TODOS = ORDEN_DIAS;
+
+/* ================= MESA ================= */
+const SERVICIOS = {
+  "Endoscopia": {dias:["L","M","X","J","V"], items:[[100,"Sábanas verdes"],[10,"Sábanas blancas"],[2,"Mantas"]]},
+  "Rayos P.A": {dias:["L","X","V"], items:[[120,"Sábanas verdes"],[70,"Entremetidas"]],
+    nota:"Colocación: arriba 4 montañas (dos de 10 y dos de 15), en la columna de abajo 50 y en medio dos de 10. Todo con 10 entremetidas arriba."},
+  "Quemados": {dias:["L","X","V"], items:[[40,"Sábanas verdes"],[30,"Sábanas blancas"],[20,"Fundas"],[5,"Colchas"],[5,"Mantas"],[10,"Camisones"],[10,"Pijamas (todos los colores)"],[5,"P.U"],[20,"Toallas"],[1,"Almohada"]]},
+  "Diálisis": {dias:["L","M","X","J","V","S"], items:[[60,"Sábanas"],[30,"Fundas"],["30–40","Sábanas S/U"],[5,"Toallas"],["20–25","Mantas"],[20,"P.U",["L"]]],
+    nota:"Todos los días menos domingos. Festivos sí. Los lunes 20 P.U."},
+  "Hospital de Día": {dias:["L","M","X","J","V"], items:[[30,"Sábanas"],[15,"Fundas"],[5,"Mantas"]]},
+  "UCCA": {dias:TODOS, items:[[40,"Sábanas"],["5–7","Mantas"],[15,"Fundas"],[10,"Toallas"],[2,"Almohadas"],["+","P.U"]]},
+  "Hemodinámica": {dias:["L","M","X","J","V"], items:[[40,"Sábanas verdes"],[20,"Sábanas blancas"],[10,"Fundas"],[10,"Camisones (mañana y tarde)"]]},
+  "UCI": {dias:TODOS, items:[[100,"Sábanas"],[30,"Fundas"],[10,"Mantas"]], notaDia:{V:"Hoy es viernes: pedido UCI."}},
+  "Puerta P.A": {dias:["M","J"], items:[[20,"Sábanas"]]},
+  "Quirófano 1ª": {dias:TODOS, items:[[10,"Mantas"],[20,"Sábanas blancas"],[100,"Sábanas verdes"],[10,"Fundas"],[5,"Toallas"]]},
+  "Quirófano 3ª": {dias:TODOS, items:[[80,"Sábanas verdes"],[20,"Sábanas blancas"],[10,"Entremetidas"],[5,"Mantas"]]},
+  "Quirófano Urgencias": {dias:TODOS, items:[[10,"Sábanas blancas"],[60,"Sábanas verdes"],[5,"Mantas"]]},
+  "Quirófano Trauma": {dias:TODOS, items:[[80,"Sábanas verdes"],[10,"Sábanas blancas"],[5,"Mantas"],[15,"Pijamas verdes S/M/L"],[10,"Pijamas verdes XL"],[2,"Pijamas verdes EX"]]},
+  "Estéril": {dias:TODOS, nota:"Llevar antes de las 11h.",
+    itemsDia:d => d==="L" ? [["—","Sábanas verdes: los lunes no"],["Todos","Batas y paños"]]
+                : (d==="S"||d==="D") ? [[80,"Sábanas verdes"],["Todos","Batas y paños"]]
+                : [["20–30","Sábanas verdes"],["Todos","Batas y paños"]]},
+  "Holter": {dias:["M","J"], items:[[60,"Entremetidas"]], sub:"Diálisis con consultas"},
+  "Broncoscopia": {dias:["M","J"], items:[[20,"Sábanas verdes"]], sub:"Diálisis con consultas"},
+  "Nuclear": {dias:["M","J"], items:[["20–30","Sábanas"],["15–20","Entremetidas"],["5–10","Fundas"],[2,"Mantas"]], nota:"Se mira lo que necesitan."},
+  "Radioterapia": {dias:["M","J"], items:[[10,"Sábanas blancas"],[10,"Entremetidas"]], nota:"Se mira lo que necesitan."},
+  "Aféresis": {dias:["M","J"], items:[], nota:"Se mira lo que necesitan."},
+  "Puerta P.B": {dias:TODOS, items:[[20,"Sábanas"],["±5","Colchas"]]},
+  "Puerta (tarde)": {dias:TODOS, items:[["±20","Sábanas"],["±5","Colchas"]]},
+  "Rx": {dias:TODOS, items:[[10,"Sábanas blancas"],[10,"Entremetidas"]]}
+};
+const BLOQUES = [
+  {t:"1º", s:["Endoscopia","Rayos P.A","Quemados","Diálisis","Hospital de Día"]},
+  {t:"2º", s:["UCCA","Hemodinámica","UCI","Puerta P.A"]},
+  {t:"3º · Quirófanos", s:["Quirófano 1ª","Quirófano 3ª","Quirófano Urgencias","Quirófano Trauma"]},
+  {t:"4º", s:["Estéril"]},
+  {t:"Martes y jueves", s:["Holter","Broncoscopia","Nuclear","Radioterapia","Aféresis"]},
+  {t:"Otros", s:["Puerta P.B","Puerta (tarde)","Rx"]}
+];
+
+/* ================= PLANTA ================= */
+const DIAL = "Diálisis (Broncoscopia y Consulta Cardiología «Hermano Manolo»)";
+const SOT = "Sótano (Nuclear, Mortuorio, mantenimiento, braquiterapia)";
+const PB = "Planta baja (rayos, puerta, h. día, extracciones…)";
+const VAP = "Anatomía Patológica";
+const V7 = "Subir a la 7ª";
+const QX1 = "1ª + Qx (UCE, UCCA, vestuarios) y quemados";
+const PLANTAS = {
+  A: ["Sótano","Planta baja","2ª","3ª","4ª","5ª","6ª"],
+  B: ["Sótano","1ª","2ª","3ª","Ascensor","Semi"]
+};
+const REPARTO = {
+  A: {
+    3:[{p:"1",z:["6ª","5ª",DIAL],pl:["6ª","5ª"],v:V7},
+       {p:"2",z:["4ª + vestuario rellano",PB,SOT],pl:["4ª","Planta baja","Sótano"],v:VAP},
+       {p:"3",z:["3ª + endoscopia","2ª + aféresis"],pl:["3ª","2ª"]}],
+    4:[{p:"1",z:["6ª","5ª"],pl:["6ª","5ª"],v:V7},
+       {p:"2",z:["4ª + vestuario rellano",SOT],pl:["4ª","Sótano"]},
+       {p:"3",z:["3ª + endoscopia",DIAL],pl:["3ª"]},
+       {p:"4",z:["2ª","Aféresis",PB],pl:["2ª","Planta baja"],v:VAP}],
+    5:[{p:"1",z:["5ª"],pl:["5ª"]},
+       {p:"2",z:["4ª + vestuario rellano",SOT],pl:["4ª","Sótano"]},
+       {p:"3",z:["3ª + endoscopia"],pl:["3ª"]},
+       {p:"4",z:["2ª","Aféresis",PB],pl:["2ª","Planta baja"],v:VAP},
+       {p:"5",z:["6ª",DIAL],pl:["6ª"],v:V7}],
+    6:[{p:"1",z:["5ª"],pl:["5ª"]},
+       {p:"2",z:["4ª + vestuario"],pl:["4ª"]},
+       {p:"3",z:["3ª + endoscopia"],pl:["3ª"]},
+       {p:"4",z:["2ª","Aféresis",PB],pl:["2ª","Planta baja"],v:VAP},
+       {p:"5",z:["6ª"],pl:["6ª"],v:V7},
+       {p:"6",z:[DIAL,SOT],pl:["Sótano"]}],
+    7:[{p:"1",z:["5ª"],pl:["5ª"]},
+       {p:"2",z:["4ª + vestuario"],pl:["4ª"]},
+       {p:"3",z:["3ª + endoscopia"],pl:["3ª"]},
+       {p:"4",z:["2ª","Aféresis"],pl:["2ª"],v:VAP},
+       {p:"5",z:["6ª"],pl:["6ª"],v:V7},
+       {p:"6",z:[DIAL,SOT],pl:["Sótano"]},
+       {p:"7",z:[PB],pl:["Planta baja"]}]
+  },
+  B: {
+    4:[{p:"1 y 2",z:["6ª, 5ª y 4ª"],pl:["Ascensor"]},
+       {p:"3",z:["3ª + Qx 3ª + Vestuarios","2ª + UCI + Hemodinámica"],pl:["3ª","2ª"]},
+       {p:"4",z:[QX1,"Semi (Observa 1, 2 y 3)"],pl:["1ª","Semi"]}],
+    5:[{p:"1 y 2",z:["6ª, 5ª y 4ª"],pl:["Ascensor"]},
+       {p:"3",z:["3ª + Qx 3ª + Vestuarios"],pl:["3ª"]},
+       {p:"4",z:[QX1,"Semi (Observa 1, 2 y 3)"],pl:["1ª","Semi"]},
+       {p:"5",z:["2ª + UCI + Hemodinámica"],pl:["2ª"]}],
+    6:[{p:"1 y 2",z:["6ª, 5ª y 4ª"],pl:["Ascensor"]},
+       {p:"3",z:["3ª + Qx 3ª + Vestuarios"],pl:["3ª"]},
+       {p:"4",z:[QX1],pl:["1ª"]},
+       {p:"5",z:["2ª + UCI + Hemodinámica"],pl:["2ª"]},
+       {p:"6",z:["Semi (Observa)","Vestuarios sótano"],pl:["Semi","Sótano"]}],
+    7:[{p:"1 y 2",z:["6ª y 5ª"],pl:["Ascensor"]},
+       {p:"3",z:["3ª + Qx 3ª + Vestuarios"],pl:["3ª"]},
+       {p:"4",z:[QX1],pl:["1ª"]},
+       {p:"5",z:["2ª + UCI + Hemodinámica"],pl:["2ª"]},
+       {p:"6",z:["Semi (Observa)"],pl:["Semi"]},
+       {p:"7",z:["4ª + vestuarios sótano"],pl:["Sótano"]}]
+  }
+};
+
+/* ================= CAMAS ================= */
+/* Columnas = combinación de personas "PA-PB". Cada celda: texto + quién va (pabellón + planta, o "ascensor" = persona 1 y 2 del PB) */
+const CAMAS_FILAS = [
+  {id:"PA", nombre:"PA", camas:20},
+  {id:"SEMI", nombre:"PB Semi + laboratorio", camas:27, nota:"El Semi hace las camas del laboratorio."},
+  {id:"PB13", nombre:"PB 1ª y 3ª", camas:26},
+  {id:"SUELTAS", nombre:"PB sueltas 6ª, 5ª, 4ª", camas:23}
+];
+const a=(pl)=>({pab:"A",pl}), b=(pl)=>({pab:"B",pl}), asc={pab:"B",pl:"ascensor"};
+const CAMAS = {
+  "4-4": {PA:{t:"2ª y 5ª+6ª PA",q:[a("2ª"),a("5ª")]}, SEMI:{t:"3ª PA y 1ª + Semi",q:[a("3ª"),b("1ª")]}, PB13:{t:"1 ascensor y 2ª y 3ª PB",q:[asc,b("3ª")]}, SUELTAS:{t:"1 ascensor y 4ª PA",q:[asc,a("4ª")]}},
+  "4-5": {PA:{t:"2ª y 5ª+6ª PA",q:[a("2ª"),a("5ª")]}, SEMI:{t:"3ª PA y 1ª + Semi",q:[a("3ª"),b("1ª")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor y 4ª PA",q:[asc,a("4ª")]}},
+  "5-5": {PA:{t:"2ª, 5ª y 6ª PA",q:[a("2ª"),a("5ª"),a("6ª")]}, SEMI:{t:"3ª PA y 1ª + Semi",q:[a("3ª"),b("1ª")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor y 4ª PA",q:[asc,a("4ª")]}},
+  "5-6": {PA:{t:"2ª, 5ª y 6ª PA",q:[a("2ª"),a("5ª"),a("6ª")]}, SEMI:{t:"3ª PA y Semi",q:[a("3ª"),b("Semi")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor, 1ª y 4ª PA",q:[asc,b("1ª"),a("4ª")]}},
+  "6-6": {PA:{t:"2ª, 5ª y 6ª PA",q:[a("2ª"),a("5ª"),a("6ª")]}, SEMI:{t:"3ª PA, 1ª y Semi",q:[a("3ª"),b("1ª"),b("Semi")]}, PB13:{t:"1 ascensor, 2ª PB y 3ª PB",q:[asc,b("2ª"),b("3ª")]}, SUELTAS:{t:"1 ascensor, 1ª y 4ª PA",q:[asc,b("1ª"),a("4ª")]}}
+};
+function combos(pab,n){ return Object.keys(CAMAS).filter(k=>{const [pa,pb]=k.split("-"); return (pab==="A"?pa:pb)===String(n);}).map(k=>{const [pa,pb]=k.split("-"); return pab==="A"?pb:pa;}); }
+function camasDe(m){
+  if(!st.otro) return [];
+  const k = st.pab==="A" ? `${st.n}-${st.otro}` : `${st.otro}-${st.n}`;
+  const col = CAMAS[k];
+  return CAMAS_FILAS.filter(f=>col[f.id].q.some(t=>t.pab===st.pab && (t.pl==="ascensor" ? m.p==="1 y 2" : m.pl.includes(t.pl))))
+                    .map(f=>({fila:f, celda:col[f.id]}));
+}
+
+/* ================= ESTADO / NAVEGACIÓN ================= */
+const app = document.getElementById("app");
+const btnBack = document.getElementById("back");
+const btnHome = document.getElementById("home");
+let stack = [];
+let st = {dia: DIAS[new Date().getDay()]};
+
+function store(k,v){try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k,JSON.stringify(v)); }catch(e){ return null; }}
+function go(view, push=true){ if(push) stack.push(view); render(); }
+function back(){ stack.pop(); render(); }
+btnBack.onclick = back;
+btnHome.onclick = () => { stack = ["inicio"]; render();
+if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(()=>{}); }); } };
+
+function el(html){ const d=document.createElement("div"); d.innerHTML=html; return d; }
+function opts(list, cls=""){ return `<div class="opts ${cls}">${list.map(([v,l,s])=>`<button class="opt" data-v="${v}">${l}${s?`<small>${s}</small>`:""}</button>`).join("")}</div>`; }
+function bindOpts(fn){ app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>fn(b.dataset.v)); }
+function crumbs(){ const c=[]; if(st.pab) c.push("Pabellón "+st.pab); if(st.planta) c.push(st.planta); if(st.n) c.push(st.n+" personas"); if(st.otro) c.push(st.otro+" en Pab. "+(st.pab==="A"?"B":"A")); return c.length?`<div class="crumbs">${c.join(" · ")}</div>`:""; }
+
+function render(){
+  const v = stack[stack.length-1];
+  btnBack.hidden = stack.length<=1;
+  btnHome.hidden = stack.length<=2;
+  window.scrollTo(0,0);
+  ({inicio, mesa, pabellon, planta, personas, otro, resultado})[v]();
+}
+
+/* ---- Inicio ---- */
+function inicio(){
+  st = {dia: st.dia};
+  document.getElementById("title").textContent = "Lencería";
+  app.innerHTML = `<div class="q">¿Dónde estás hoy?</div>` + opts([["mesa","Mesa","Preparar pedidos"],["planta","Planta","Reparto por pabellón"]],"grid2");
+  bindOpts(v => go(v==="mesa"?"mesa":"pabellon"));
+}
+
+/* ---- Mesa ---- */
+function fmtItem([n,txt,soloDias], d){
+  if(soloDias && !soloDias.includes(d)) return "";
+  const t = /verde/i.test(txt)?'<span class="tag v">verde</span>':/blanca/i.test(txt)?'<span class="tag b">blanca</span>':"";
+  return `<li><span class="n">${n}</span><span>${txt.replace(/ (verdes|blancas)/i,"")}${t}${soloDias?` <span class="sub">(solo ${soloDias.map(x=>DIAS_NOMBRE[x].toLowerCase()).join(", ")})</span>`:""}</span></li>`;
+}
+function mesa(){
+  document.getElementById("title").textContent = "Mesa";
+  const d = st.dia;
+  const hechoKey = "hecho-" + new Date().toISOString().slice(0,10) + "-" + d;
+  const hecho = store(hechoKey) || {};
+  let total=0, done=0;
+  let html = `<div class="q">Qué preparar · ${DIAS_NOMBRE[d]}</div>
+    <div class="days">${ORDEN_DIAS.map(x=>`<button data-d="${x}" class="${x===d?"on":""}">${x}</button>`).join("")}</div>`;
+  let body = "";
+  BLOQUES.forEach(b=>{
+    const hoy = b.s.filter(n=>SERVICIOS[n].dias.includes(d));
+    if(!hoy.length) return;
+    body += `<div class="section"><span>${b.t}</span></div>`;
+    hoy.forEach(n=>{
+      const s = SERVICIOS[n];
+      const items = s.itemsDia ? s.itemsDia(d) : s.items;
+      total++; if(hecho[n]) done++;
+      const notas = [s.nota, s.notaDia && s.notaDia[d]].filter(Boolean);
+      body += `<div class="card ${hecho[n]?"done":""}" data-s="${n}">
+        <div class="card-h"><div class="chk">✓</div><h3>${n}${s.sub?`<div class="sub">${s.sub}</div>`:""}</h3></div>
+        <div class="card-b">${items.length?`<ul class="items">${items.map(i=>fmtItem(i,d)).join("")}</ul>`:""}
+        ${notas.map(t=>`<div class="note">${t}</div>`).join("")}</div></div>`;
+    });
+  });
+  html += `<div class="progress"><div style="width:${total?done/total*100:0}%"></div></div><div class="sub">${done} de ${total} preparados · toca un servicio para marcarlo</div>` + body;
+  app.innerHTML = html;
+  app.querySelectorAll(".days button").forEach(b=>b.onclick=()=>{st.dia=b.dataset.d; mesa();});
+  app.querySelectorAll(".card-h").forEach(h=>h.onclick=()=>{
+    const n=h.parentElement.dataset.s; hecho[n]=!hecho[n]; store(hechoKey,hecho); const y=window.scrollY; mesa(); window.scrollTo(0,y);
+  });
+}
+
+/* ---- Planta ---- */
+function pabellon(){
+  delete st.pab; delete st.planta; delete st.n;
+  document.getElementById("title").textContent = "Planta";
+  app.innerHTML = `<div class="q">¿En qué pabellón estás?</div>` + opts([["A","Pabellón A"],["B","Pabellón B"]],"grid2");
+  bindOpts(v=>{st.pab=v; go("personas");});
+}
+function personas(){
+  delete st.n; delete st.planta; delete st.otro;
+  const ns = Object.keys(REPARTO[st.pab]);
+  app.innerHTML = crumbs() + `<div class="q">¿Cuántas personas sois hoy en el Pabellón ${st.pab}?</div>` + opts(ns.map(n=>[n,n]),"grid3");
+  bindOpts(v=>{st.n=v; go("planta");});
+}
+function planta(){
+  delete st.planta; delete st.otro;
+  const usadas = new Set(REPARTO[st.pab][st.n].flatMap(x=>x.pl));
+  const lista = PLANTAS[st.pab].filter(p=>usadas.has(p));
+  app.innerHTML = crumbs() + `<div class="q">¿En qué planta estás?</div>` + opts(lista.map(p=>[p,p]),"grid3");
+  bindOpts(v=>{st.planta=v; go(combos(st.pab,st.n).length ? "otro" : "resultado");});
+}
+function otro(){
+  delete st.otro;
+  const otroPab = st.pab==="A"?"B":"A";
+  app.innerHTML = crumbs() + `<div class="q">Para las camas: ¿cuántas personas hay en el Pabellón ${otroPab}?</div>` + opts(combos(st.pab,st.n).map(n=>[n,n]),"grid3");
+  bindOpts(v=>{st.otro=v; go("resultado");});
+}
+function resultado(){
+  const lista = REPARTO[st.pab][st.n];
+  const mios = lista.filter(x=>x.pl.includes(st.planta));
+  const esViernes = st.dia==="V";
+  let html = crumbs();
+  if(mios.length){
+    mios.forEach(m=>{
+      html += `<div class="card me"><div class="card-b" style="padding-top:14px">
+        <div class="sub">Eres la persona</div><div class="big">Persona ${m.p}</div>
+        <div class="zones">${m.z.map(z=>"• "+z).join("<br>")}</div>
+        ${m.v?`<div class="friday" style="${esViernes?"":"background:#f1f1f1;color:#555;font-weight:500"}">Viernes: ${m.v}${esViernes?" (¡hoy!)":""}</div>`:""}
+        ${camasHtml(m)}
+      </div></div>`;
+    });
+  } else {
+    html += `<div class="note">Con ${st.n} personas, la planta ${st.planta} no aparece en el reparto. Mira el reparto completo.</div>`;
+  }
+  html += `<div class="section"><span>Reparto completo · ${st.n} personas</span></div>
+    <div class="card"><div class="card-b" style="padding-top:8px"><ul class="items team">${lista.map(x=>`<li><b>Persona ${x.p}</b><br>${x.z.join(" · ")}${x.v?`<div class="sub">Viernes: ${x.v}</div>`:""}</li>`).join("")}</ul></div></div>`;
+  if(st.otro){
+    const k = st.pab==="A" ? `${st.n}-${st.otro}` : `${st.otro}-${st.n}`;
+    html += `<div class="section"><span>Camas · PA ${k.split("-")[0]} / PB ${k.split("-")[1]}</span></div>
+      <div class="card"><div class="card-b" style="padding-top:8px"><ul class="items team">${CAMAS_FILAS.map(f=>`<li><b>${f.nombre}</b> <span class="sub">· ${f.camas} camas · ${CAMAS[k][f.id].q.length} personas</span><br>${CAMAS[k][f.id].t}</li>`).join("")}</ul>
+      <div class="sub" style="margin-top:6px">«Ascensor» = persona 1 y 2 del Pabellón B. El Semi hace las camas del laboratorio.</div></div></div>`;
+  } else {
+    html += `<div class="note">No hay reparto de camas para ${st.n} personas en el Pabellón ${st.pab}.</div>`;
+  }
+  app.innerHTML = html;
+}
+function camasHtml(m){
+  if(!st.otro) return "";
+  const c = camasDe(m);
+  if(!c.length) return `<div class="note">Camas: no apareces en el reparto de camas con esta combinación.</div>`;
+  return `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div class="sub">Camas que te tocan</div>
+    ${c.map(x=>`<div style="font-size:19px;font-weight:650;margin-top:4px">🛏 ${x.fila.nombre} <span class="sub">(${x.fila.camas} camas)</span></div><div class="sub">Con: ${x.celda.t}</div>`).join("")}
+    ${m.p==="1 y 2"?`<div class="sub" style="margin-top:4px">Sois los dos «ascensor»: uno va a cada sitio.</div>`:""}
+    ${c.some(x=>x.fila.nota)?`<div class="sub" style="margin-top:4px">El Semi hace las camas del laboratorio.</div>`:""}</div>`;
+}
+
+stack = ["inicio"]; render();
+if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(()=>{}); }); }
+</script>
+</body>
+</html>
